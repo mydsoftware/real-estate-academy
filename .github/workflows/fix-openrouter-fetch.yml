@@ -1,0 +1,73 @@
+name: Fix OpenRouter browser connection
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch OpenRouter client
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('src/TrainingLab.jsx')
+          s = p.read_text(encoding='utf-8')
+
+          pattern = r"const callOpenRouter=async\(messages\)=>\{.*?\};(?=const saveAiSettings)"
+          replacement = r'''const callOpenRouter=async(messages)=>{\
+ if(!aiKey.trim())throw new Error('ابتدا کلید OpenRouter را در تب «اتصال هوش مصنوعی» وارد کن.');\
+ const controller=new AbortController();\
+ const timer=setTimeout(()=>controller.abort(),30000);\
+ try{\
+  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{\
+   method:'POST',\
+   mode:'cors',\
+   headers:{'Authorization':'Bearer '+aiKey.trim(),'Content-Type':'application/json'},\
+   body:JSON.stringify({model:aiModel.trim()||'openai/gpt-4o-mini',messages,temperature:0.4,max_tokens:900}),\
+   signal:controller.signal\
+  });\
+  const data=await res.json().catch(()=>({}));\
+  if(!res.ok){\
+   const msg=data?.error?.message||data?.message||('خطای OpenRouter: '+res.status);\
+   throw new Error(msg);\
+  }\
+  const answer=data?.choices?.[0]?.message?.content;\
+  if(!answer)throw new Error('OpenRouter پاسخ متنی برنگرداند؛ شناسه مدل و اعتبار کلید را بررسی کن.');\
+  return answer;\
+ }catch(e){\
+  if(e?.name==='AbortError')throw new Error('اتصال به OpenRouter بیش از ۳۰ ثانیه طول کشید؛ شبکه یا دسترسی به openrouter.ai را بررسی کن.');\
+  if(e instanceof TypeError && /fetch/i.test(e.message||''))throw new Error('مرورگر نتوانست به OpenRouter وصل شود؛ احتمالاً DNS، فیلترینگ شبکه یا CORS مانع اتصال است.');\
+  throw e;\
+ }finally{clearTimeout(timer)}\
+};'''
+
+          if not re.search(pattern, s, flags=re.S):
+              print('OpenRouter function already patched or pattern not found; nothing to do.')
+          else:
+              s2 = re.sub(pattern, replacement, s, count=1, flags=re.S)
+              p.write_text(s2, encoding='utf-8')
+
+      - name: Commit patch if changed
+        shell: bash
+        run: |
+          if git diff --quiet -- src/TrainingLab.jsx; then
+            echo "No source change needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/TrainingLab.jsx
+          git commit -m "fix: harden OpenRouter browser fetch"
+          git push
