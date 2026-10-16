@@ -1,0 +1,141 @@
+name: Finalize Academy
+
+on:
+  push:
+    paths:
+      - '.github/workflows/finalize-academy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add lesson quizzes
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('src/main.jsx')
+          s = p.read_text(encoding='utf-8')
+
+          if 'FINAL_ACADEMY_QUIZ_V1' not in s:
+              marker = 'function App(){'
+              component = r'''
+/* FINAL_ACADEMY_QUIZ_V1 */
+function QuizPanel({ lessonTitle, detail }) {
+  const storageKey = `reAcademyQuiz:${lessonTitle}`;
+  const [answers, setAnswers] = React.useState({});
+  const [submitted, setSubmitted] = React.useState(false);
+  const [score, setScore] = React.useState(null);
+
+  const buildQuestions = React.useMemo(() => {
+    if (!detail) return [];
+    const steps = detail.steps || [];
+    const checklist = detail.checklist || [];
+    const mistakes = detail.mistakes || [];
+    const qs = [];
+    const pool = steps.length ? steps : [['اصل درس', detail.goal || 'هدف اصلی درس را در عمل رعایت کن.']];
+    const make = (id, question, correct, distractors, explanation) => {
+      const opts = [correct, ...distractors].slice(0,4);
+      const shift = (id * 3) % opts.length;
+      const rotated = opts.slice(shift).concat(opts.slice(0,shift));
+      const correctIndex = rotated.indexOf(correct);
+      return {id, question, options: rotated, correct: correctIndex, explanation};
+    };
+    for (let i = 0; i < Math.min(6, pool.length); i++) {
+      const step = pool[i];
+      const others = pool.filter((_,j)=>j!==i).map(x=>x[1]);
+      qs.push(make(i+1, `در درس «${lessonTitle}»، در بخش «${step[0]}» کدام اقدام درست‌تر است؟`, step[1], others, step[1]));
+    }
+    while (qs.length < 6) {
+      const i = qs.length % pool.length;
+      const step = pool[i];
+      qs.push(make(qs.length+1, `کدام گزینه با روش حرفه‌ای مطرح‌شده در درس «${lessonTitle}» هماهنگ‌تر است؟`, step[1], pool.filter((_,j)=>j!==i).map(x=>x[1]), step[1]));
+    }
+    const good = checklist[0] || pool[0][1];
+    const bad = mistakes[0] || 'نتیجه‌گیری بدون بررسی کافی';
+    qs.push(make(7, `کدام مورد باید در اجرای «${lessonTitle}» کنترل شود؟`, good, [bad, 'نادیده گرفتن ابهام‌های مهم', 'دادن وعده قطعی بدون داده'], good));
+    qs.push(make(8, `کدام رفتار در «${lessonTitle}» یک اشتباه رایج محسوب می‌شود؟`, bad, [good, 'ثبت دقیق اطلاعات', 'ارجاع موضوع تخصصی به متخصص'], bad));
+    const c2 = checklist[1] || good;
+    qs.push(make(9, `برای اجرای حرفه‌ای درس «${lessonTitle}» کدام گزینه مناسب‌تر است؟`, c2, [bad, 'پنهان کردن ایرادها', 'استفاده از اطلاعات حدسی'], c2));
+    qs.push(make(10, `اگر در اجرای «${lessonTitle}» با ابهام مهمی روبه‌رو شدی، بهترین رویکرد چیست؟`, 'ابهام را ثبت کن و پیش از تصمیم قطعی، بررسی لازم را انجام بده.', ['آن را نادیده بگیر تا معامله سریع‌تر پیش برود.','برای اطمینان مشتری، پاسخ قطعی بدون بررسی بده.','اطلاعات را حدس بزن و بعداً اصلاح کن.'], 'ابهام مهم باید ثبت و بررسی شود؛ سرعت نباید جای دقت را بگیرد.'));
+    return qs;
+  }, [lessonTitle, detail]);
+
+  React.useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      if (saved && typeof saved.score === 'number') setScore(saved.score);
+    } catch {}
+  }, [storageKey]);
+
+  const submit = () => {
+    if (Object.keys(answers).length !== 10) return;
+    const value = buildQuestions.reduce((n,q)=>n+(answers[q.id]===q.correct?1:0),0);
+    const result = Math.round(value / 10 * 100);
+    setScore(result);
+    setSubmitted(true);
+    try { localStorage.setItem(storageKey, JSON.stringify({score:result, answers, date:new Date().toISOString()})); } catch {}
+  };
+
+  const retry = () => { setAnswers({}); setSubmitted(false); };
+
+  return <section className="quizPanel">
+    <div className="quizHeader"><div><span className="quizEyebrow">آزمون درس</span><h3>آزمون ۱۰ سؤالی «{lessonTitle}»</h3></div>{score!==null&&<strong className="quizScore">آخرین نمره: {score}%</strong>}</div>
+    <p className="quizHint">برای قبولی، بهتر است حداقل ۷۰٪ پاسخ‌ها درست باشد. پاسخ‌ها بعد از ثبت آزمون بررسی می‌شوند.</p>
+    <div className="quizQuestions">{buildQuestions.map((q,i)=><div className="quizQuestion" key={q.id}>
+      <b>{i+1}. {q.question}</b>
+      <div className="quizOptions">{q.options.map((option,j)=><label key={j} className={submitted ? (j===q.correct?'quizCorrect':answers[q.id]===j?'quizWrong':'') : ''}><input type="radio" name={`${storageKey}-${q.id}`} checked={answers[q.id]===j} disabled={submitted} onChange={()=>setAnswers(a=>({...a,[q.id]:j}))}/><span>{option}</span></label>)}</div>
+      {submitted&&<div className="quizFeedback">{answers[q.id]===q.correct?'✓ پاسخ درست':'✗ پاسخ صحیح: '+q.options[q.correct]} — {q.explanation}</div>}
+    </div>)}</div>
+    {!submitted ? <button className="quizSubmit" disabled={Object.keys(answers).length!==10} onClick={submit}>ثبت آزمون و مشاهده نتیجه</button> : <div className="quizResult"><strong>{score >= 70 ? 'قبول شدی' : 'نیاز به مرور دوباره داری'}</strong><span>نمره: {score}%</span><button onClick={retry}>آزمون مجدد</button></div>}
+  </section>;
+}
+
+'''
+              if marker not in s:
+                  raise SystemExit('App marker not found')
+              s = s.replace(marker, component + marker, 1)
+
+          hook = "{open.key&&<button className=\"complete\" onClick={()=>toggle(open.key)}>{done.includes(open.key)?'✓ درس تکمیل شده':'علامت‌گذاری به‌عنوان تکمیل‌شده'}</button>}"
+          inject = "{open.key&&<button className=\"complete\" onClick={()=>toggle(open.key)}>{done.includes(open.key)?'✓ درس تکمیل شده':'علامت‌گذاری به‌عنوان تکمیل‌شده'}</button>}"
+          quiz = "{open.key&&lessonDetails[open.title]&&<QuizPanel lessonTitle={open.title} detail={lessonDetails[open.title]}/> }"
+          if 'QuizPanel lessonTitle={open.title}' not in s:
+              if hook not in s:
+                  raise SystemExit('completion button marker not found')
+              s = s.replace(hook, quiz + hook, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Improve quiz styles
+        shell: bash
+        run: |
+          cat >> src/styles.css <<'CSS'
+
+/* FINAL_ACADEMY_QUIZ_V1 */
+.quizPanel{margin-top:22px;border:1px solid #dfe6df;border-radius:16px;background:#f8faf7;padding:18px}
+.quizHeader{display:flex;justify-content:space-between;gap:15px;align-items:flex-start}.quizEyebrow{font-size:9px;color:#9a742e;font-weight:800}.quizHeader h3{margin:5px 0 0;font-size:16px;color:#173f36}.quizScore{font-size:11px;background:#edf4f0;color:#173f36;padding:7px 10px;border-radius:9px;white-space:nowrap}.quizHint{font-size:10px;line-height:1.8;color:#707a74;margin:10px 0 15px}.quizQuestions{display:grid;gap:12px}.quizQuestion{background:#fff;border:1px solid #e5eae4;border-radius:12px;padding:13px}.quizQuestion>b{display:block;font-size:11px;line-height:1.9;color:#28352f}.quizOptions{display:grid;gap:7px;margin-top:10px}.quizOptions label{display:flex;gap:8px;align-items:flex-start;padding:8px 9px;border:1px solid #e6eae5;border-radius:9px;font-size:10px;line-height:1.8;color:#56615b;cursor:pointer}.quizOptions label:hover{border-color:#b9cfc3}.quizOptions input{margin-top:4px;accent-color:#173f36}.quizOptions .quizCorrect{border-color:#8ebaa4;background:#eef7f1}.quizOptions .quizWrong{border-color:#d9a6a6;background:#fff3f3}.quizFeedback{margin-top:9px;padding:8px 10px;border-radius:8px;background:#f2f5f1;font-size:10px;line-height:1.9;color:#59635d}.quizSubmit{margin-top:14px;background:#143f36;color:#fff;border-radius:10px;padding:11px 16px;font-size:11px}.quizSubmit:disabled{opacity:.45;cursor:not-allowed}.quizResult{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px;background:#edf4f0;border-radius:10px;font-size:11px;color:#173f36}.quizResult button{margin-right:auto;background:#fff;color:#173f36;border:1px solid #cddbd3;border-radius:8px;padding:7px 11px;font-size:10px}@media(max-width:760px){.quizHeader{display:block}.quizScore{display:inline-block;margin-top:10px}.quizQuestion{padding:11px}.quizResult{flex-wrap:wrap}.quizResult button{margin-right:0;width:100%}}
+CSS
+
+      - name: Build
+        run: |
+          npm install
+          npm run build
+
+      - name: Commit finalized app
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/main.jsx src/styles.css
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'feat: add 10-question assessment after every lesson'
+            git push
+          fi
