@@ -11,7 +11,7 @@ details_end = source.index("\n};\n\nconst allLessons", details_start)
 details_text = source[details_start:details_end]
 
 lesson_titles = re.findall(r"^\s*\['([^']+)','[^']*'\],?$", modules_text, re.MULTILINE)
-detail_keys = re.findall(r"^  (['\"])(.*?)\1:\s*\{$", details_text, re.MULTILINE)
+detail_keys = re.findall(r"""^  .([^'"]+).:\s*\{$""", details_text, re.MULTILINE)
 
 errors = []
 if len(lesson_titles) != 50:
