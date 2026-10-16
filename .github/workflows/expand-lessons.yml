@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'scripts/expand_lessons.py'
+      - 'src/main.jsx'
       - '.github/workflows/expand-lessons.yml'
 permissions:
   contents: write
