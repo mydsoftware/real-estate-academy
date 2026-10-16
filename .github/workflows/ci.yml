@@ -21,5 +21,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Validate academy content and quiz behavior
+        run: python scripts/validate_academy.py
       - name: Build production bundle
         run: npm run build
