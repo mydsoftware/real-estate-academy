@@ -31,6 +31,8 @@ if extra:
     errors.append("Detail entries without lessons: " + ", ".join(extra))
 if "function QuizPanel" not in source or "make(10," not in source:
     errors.append("Ten-question lesson quiz implementation is missing or incomplete")
+if "wrongOptions" not in source or "supplemental" not in source:
+    errors.append("Quiz distractors or supplemental questions are missing")
 if ".quizOptions{display:flex!important;flex-direction:column!important;" not in styles:
     errors.append("Quiz answer choices are not configured as a vertical list")
 if "localStorage.setItem(storageKey" not in source:
