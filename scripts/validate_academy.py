@@ -33,6 +33,13 @@ if "function QuizPanel" not in source or "make(10," not in source:
     errors.append("Ten-question lesson quiz implementation is missing or incomplete")
 if "wrongOptions" not in source or "supplemental" not in source:
     errors.append("Quiz distractors or supplemental questions are missing")
+training = Path("src/TrainingLab.jsx").read_text(encoding="utf-8")
+if "تمرین سناریو" not in training or "psychology" not in training:
+    errors.append("Scenario practice or customer psychology tab is missing")
+if "scenarios.map" not in training or "activeScenario.steps.map" not in training:
+    errors.append("Scenario practice is not linked to real scenario data and steps")
+if "activePsychology.need" not in training or "activePsychology.avoid" not in training:
+    errors.append("Customer psychology needs/avoidance guidance is missing")
 if ".quizOptions{display:flex!important;flex-direction:column!important;" not in styles:
     errors.append("Quiz answer choices are not configured as a vertical list")
 if "localStorage.setItem(storageKey" not in source:
