@@ -1593,11 +1593,36 @@ function QuizPanel({ lessonTitle, detail }) {
       const rotated = opts.slice(shift).concat(opts.slice(0,shift));
       return {id, q, o:rotated, c:rotated.indexOf(correct), explanation};
     };
+    const genericWrong = [
+      'بدون بررسی کافی، نتیجه قطعی اعلام کن.',
+      'ابهام‌ها را ثبت نکن و به گفته شفاهی بسنده کن.',
+      'برای راضی کردن مشتری، ایراد مهم را پنهان کن.',
+      'موضوع خارج از صلاحیت را شخصاً تأیید کن.'
+    ];
+    const wrongPool = [...mistakes.map(x => `در اجرای این درس، ${x} را انجام بده.`), ...genericWrong];
+    const wrongOptions = (seed, correct) => {
+      const picked = [];
+      for (let offset = 0; offset < wrongPool.length * 2 && picked.length < 3; offset++) {
+        const candidate = wrongPool[(seed * 2 + offset) % wrongPool.length];
+        if (candidate !== correct && !picked.includes(candidate)) picked.push(candidate);
+      }
+      return picked;
+    };
     for (let i=0;i<Math.min(6,pool.length);i++) {
       const step=pool[i];
-      qs.push(make(i+1,`در درس «${lessonTitle}»، در بخش «${step[0]}» کدام اقدام درست‌تر است؟`,step[1],pool.filter((_,j)=>j!==i).map(x=>x[1]),step[1]));
+      qs.push(make(i+1,`در درس «${lessonTitle}»، در بخش «${step[0]}» کدام اقدام درست‌تر است؟`,step[1],wrongOptions(i,step[1]),step[1]));
     }
-    while(qs.length<6){const i=qs.length%pool.length,step=pool[i];qs.push(make(qs.length+1,`کدام گزینه با روش حرفه‌ای مطرح‌شده در درس «${lessonTitle}» هماهنگ‌تر است؟`,step[1],pool.filter((_,j)=>j!==i).map(x=>x[1]),step[1]));}
+    const supplemental = [
+      ...checklist.slice(2).filter(x => !pool.some(step => step[1] === x)),
+      'منبع و تاریخ اطلاعات مهم را ثبت کن.',
+      'گام بعدی و مسئول پیگیری را مشخص کن.',
+      'ابهام‌های باقی‌مانده را پیش از تصمیم قطعی بررسی کن.'
+    ];
+    while(qs.length<6){
+      const index=qs.length-Math.min(6,pool.length);
+      const correct=supplemental[index]||'منبع و تاریخ اطلاعات مهم را ثبت کن.';
+      qs.push(make(qs.length+1,`کدام کنترل تکمیلی برای اجرای درس «${lessonTitle}» مناسب است؟`,correct,wrongOptions(qs.length,correct),correct));
+    }
     const good=checklist[0]||pool[0][1], bad=mistakes[0]||'نتیجه‌گیری بدون بررسی کافی', c2=checklist[1]||good;
     qs.push(make(7,`کدام مورد باید در اجرای «${lessonTitle}» کنترل شود؟`,good,[bad,'نادیده گرفتن ابهام‌های مهم','دادن وعده قطعی بدون داده'],good));
     qs.push(make(8,`کدام رفتار در «${lessonTitle}» یک اشتباه رایج محسوب می‌شود؟`,bad,[good,'ثبت دقیق اطلاعات','ارجاع موضوع تخصصی به متخصص'],bad));
