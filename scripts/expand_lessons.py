@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 TARGET = Path('src/main.jsx')
@@ -100,8 +101,9 @@ body = obj[1:-1]
 # Only add lessons not already covered by the existing deep-content map.
 existing_titles = set()
 for line in text[text.index('const lessonDetails'):text.index(marker)].splitlines():
-    if line.strip().startswith("'") and "': {" in line:
-        existing_titles.add(line.strip().split("'")[1])
+    match = re.match(r"""(['"])(.*?)\1\s*:\s*\{""", line.strip())
+    if match:
+        existing_titles.add(match.group(2))
 new_items=[]
 for title, value in D.items():
     if title not in existing_titles:
