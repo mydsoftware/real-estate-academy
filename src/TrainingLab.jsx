@@ -11,7 +11,7 @@ function P({title,Icon,children,desc}){return <section className="labPanel"><hea
 function I({label,value,onChange,type='text'}){return <label className="labField"><span>{label}</span><input type={type} value={value??''} onChange={e=>onChange(e.target.value)}/></label>}
 export default function TrainingLab({lessons=[]}){
 const [d,S]=useState(()=>({comparables:[{a:90,p:5400000000},{a:85,p:5100000000},{a:95,p:5700000000}],rate:30000,commission:.25,tax:10,checks:{},notes:[],mistakes:[],scores:{},done:{},skills:{},...read()}));
-const [tab,T]=useState('coach'),[ci,CI]=useState(0),[reply,R]=useState(''),[score,Score]=useState(null),[ans,A]=useState({}),[submitted,Sub]=useState(false),[area,Area]=useState(''),[price,Price]=useState(''),[note,Note]=useState(''),[mistake,Mistake]=useState('');
+const [tab,T]=useState('ai'),[ci,CI]=useState(0),[reply,R]=useState(''),[score,Score]=useState(null),[ans,A]=useState({}),[submitted,Sub]=useState(false),[area,Area]=useState(''),[price,Price]=useState(''),[note,Note]=useState(''),[mistake,Mistake]=useState('');
 const [scenarioId,ScenarioId]=useState('s1'),[scenarioReply,ScenarioReply]=useState(''),[scenarioScore,ScenarioScore]=useState(null),[scenarioAnswer,ScenarioAnswer]=useState(null),[scenarioDecisionDone,ScenarioDecisionDone]=useState(false);
 const activeScenario=scenarios.find(x=>x.id===scenarioId)||scenarios[0];
 const scenarioCustomer=(activeScenario.dialogue||[]).find(x=>x[0]!=='مشاور')||['طرف مقابل',activeScenario.summary];
