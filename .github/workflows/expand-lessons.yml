@@ -1,0 +1,29 @@
+name: Expand academy lesson content
+on:
+  push:
+    paths:
+      - 'scripts/expand_lessons.py'
+      - '.github/workflows/expand-lessons.yml'
+permissions:
+  contents: write
+jobs:
+  expand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Expand lesson content
+        run: python scripts/expand_lessons.py
+      - name: Commit expanded content
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet; then
+            echo 'No changes needed.'
+          else
+            git add src/main.jsx
+            git commit -m 'content: expand remaining academy lessons'
+            git push
+          fi
